@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHM Golden Speed Test</title>
+    
+    <!-- PWA Manifest & Meta -->
+    <link rel="manifest" href="manifest-speedtest.json">
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="apple-touch-icon" href="https://res.cloudinary.com/ewu5hckc/image/upload/v1787501407/r8ky3bgmp6baypaqogqn.png">
+    
+    <!-- Chart.js & Google Fonts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-main: #0a0a0a;
+            --bg-card: #141414;
+            --gold-primary: #FFD700;
+            --gold-secondary: #FF8C00;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+            --glow: 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .widget-container {
+            background-color: var(--bg-card);
+            padding: 2rem 1.5rem;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9), inset 0 0 3px rgba(255, 215, 0, 0.25);
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+        }
+        
+        .app-logo {
+            width: 70px;
+            height: 70px;
+            border-radius: 18px;
+            margin-bottom: 10px;
+            box-shadow: var(--glow);
+            object-fit: cover;
+            border: 2px solid var(--gold-primary);
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--gold-primary), var(--gold-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .speed-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        .speed-grid::after {
+            content: '';
+            position: absolute;
+            top: 15%;
+            bottom: 15%;
+            left: 50%;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, rgba(255, 215, 0, 0.3), transparent);
+        }
+
+        .speed-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 15px 10px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 215, 0, 0.05);
+        }
+
+        .speed-box h3 {
+            margin: 0;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+        }
+
+        .speed-display {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-top: 0.3rem;
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 0.15rem;
+            text-shadow: var(--glow);
+        }
+
+        #download-value { color: var(--gold-primary); }
+        #upload-value { color: var(--gold-secondary); }
+
+        .unit {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-shadow: none;
+        }
+
+        .status-container {
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .status-text {
+            color: var(--gold-primary);
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .pulse {
+            display: none;
+            width: 10px;
+            height: 10px;
+            background-color: var(--gold-primary);
+            border-radius: 50%;
+            margin-right: 10px;
+            box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+            animation: pulsing 1.5s infinite cubic-bezier(0.66, 0, 0, 1);
+        }
+
+        .pulse.uploading {
+            background-color: var(--gold-secondary);
+            box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.7);
+        }
+
+        @keyframes pulsing {
+            to { box-shadow: 0 0 0 12px rgba(255, 215, 0, 0); }
+        }
+
+        .chart-container {
+            margin-top: 15px;
+            margin-bottom: 20px;
+            background: #0d0d0d;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 215, 0, 0.1);
+        }
+
+        .btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--gold-primary), var(--gold-secondary));
+            color: #000;
+            border: none;
+            padding: 0.85rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 800;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-transform: uppercase;
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(255, 215, 0, 0.5);
+        }
+
+        button:disabled {
+            background: #222;
+            color: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* PWA Install Banner Button Style */
+        #install-btn {
+            display: none; 
+            background: #1a1a1a;
+            color: var(--gold-primary);
+            border: 2px solid var(--gold-primary);
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.15);
+        }
+
+        #install-btn:hover {
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .panel-footer {
+            margin-top: 20px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 215, 0, 0.1);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="widget-container">
+        <!-- New Custom Icon Added -->
+        <img src="https://res.cloudinary.com/ewu5hckc/image/upload/v1787501407/r8ky3bgmp6baypaqogqn.png" alt="App Logo" class="app-logo">
+        <h1>🌐 SHM Speed Test</h1>
+
+        <div class="speed-grid">
+            <div class="speed-box">
+                <h3>Download</h3>
+                <div class="speed-display">
+                    <span id="download-value">0.00</span>
+                    <span class="unit">Mbps</span>
+                </div>
+            </div>
+            <div class="speed-box">
+                <h3>Upload</h3>
+                <div class="speed-display">
+                    <span id="upload-value">0.00</span>
+                    <span class="unit">Mbps</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-container">
+            <div class="pulse" id="pulse-indicator"></div>
+            <div class="status-text" id="status">Ready to test</div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="speedChart" width="100%" height="40"></canvas>
+        </div>
+        
+        <div class="btn-container">
+            <button id="start-btn" onclick="startTest()">Start Test</button>
+            <!-- Install App Button -->
+            <button id="install-btn">Install App 📱</button>
+        </div>
+
+        <div class="panel-footer">
+            <p>&copy; <a href="https://www.shmwb.in" target="_self" style="color:#FFD700; text-decoration:none;">SHMwb.in</a> All Rights Reserved.</p>
+        </div>
+    </div>
+
+    <script>
+        // ==========================
+        // PWA & Service Worker Logic
+        // ==========================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then((registration) => {
+                    console.log('ServiceWorker registration successful');
+                }).catch((err) => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt !== null) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                }
+                deferredPrompt = null;
+                installBtn.style.display = 'none';
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null;
+            installBtn.style.display = 'none';
+            console.log('PWA was installed');
+        });
+
+        // ==========================
+        // Speed Test Logic
+        // ==========================
+        const downloadValue = document.getElementById("download-value");
+        const uploadValue = document.getElementById("upload-value");
+        const statusText = document.getElementById("status");
+        const startBtn = document.getElementById("start-btn");
+        const pulseIndicator = document.getElementById("pulse-indicator");
+
+        const TEST_DURATION_MS = 15000; 
+        const downloadEndpoint = "https://speed.cloudflare.com/__down?bytes=25000000"; 
+        const uploadEndpoint = "https://speed.cloudflare.com/__up";
+
+        const ctx = document.getElementById('speedChart').getContext('2d');
+        
+        let gradientGold = ctx.createLinearGradient(0, 0, 0, 400);
+        gradientGold.addColorStop(0, 'rgba(255, 215, 0, 0.5)');
+        gradientGold.addColorStop(1, 'rgba(255, 215, 0, 0.0)');
+
+        let speedChart = new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: [], 
+                datasets: [{ 
+                    label: 'Speed (Mbps)', 
+                    data: [], 
+                    borderColor: '#FFD700', 
+                    borderWidth: 2.5, 
+                    fill: true, 
+                    backgroundColor: gradientGold,
+                    tension: 0.4,
+                    pointRadius: 0
+                }] 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: true,
+                animation: { duration: 200 },
+                plugins: { legend: { display: false } },
+                scales: { 
+                    y: { 
+                        beginAtZero: true, 
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#888', font: { size: 10 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { display: false }
+                    }
+                } 
+            }
+        });
+
+        let chartUpdateInterval;
+        let currentLiveSpeed = 0; 
+
+        function updateChart(speed) {
+            speedChart.data.labels.push('');
+            speedChart.data.datasets[0].data.push(speed);
+            if (speedChart.data.labels.length > 20) { 
+                speedChart.data.labels.shift(); 
+                speedChart.data.datasets[0].data.shift();
+            }
+            speedChart.update();
+        }
+
+        function resetChart(color, gradientColor) {
+            speedChart.data.labels = [];
+            speedChart.data.datasets[0].data = [];
+            speedChart.data.datasets[0].borderColor = color;
+            
+            let newGradient = ctx.createLinearGradient(0, 0, 0, 400);
+            newGradient.addColorStop(0, gradientColor);
+            newGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            speedChart.data.datasets[0].backgroundColor = newGradient;
+            
+            speedChart.update();
+        }
+
+        async function startTest() {
+            downloadValue.innerText = "0.00";
+            uploadValue.innerText = "0.00";
+            startBtn.disabled = true;
+            statusText.style.color = "var(--gold-primary)";
+            pulseIndicator.style.display = "block";
+            pulseIndicator.classList.remove("uploading");
+
+            try {
+                statusText.innerText = "Testing Download...";
+                resetChart('#FFD700', 'rgba(255, 215, 0, 0.5)'); 
+                await testDownloadStability();
+
+                pulseIndicator.classList.add("uploading");
+                statusText.innerText = "Testing Upload...";
+                resetChart('#FF8C00', 'rgba(255, 140, 0, 0.5)'); 
+                await testUploadStability();
+
+                statusText.innerText = "Test Complete!";
+                statusText.style.color = "#00ff88"; 
+                pulseIndicator.style.display = "none";
+            } catch (error) {
+                statusText.innerText = "Test failed. Try again.";
+                statusText.style.color = "#ff4444";
+                console.error(error);
+                pulseIndicator.style.display = "none";
+            } finally {
+                startBtn.disabled = false;
+                startBtn.innerText = "Test Again";
+            }
+        }
+
+        async function testDownloadStability() {
+            let startTime = performance.now();
+            let totalBytes = 0;
+            currentLiveSpeed = 0;
+            
+            chartUpdateInterval = setInterval(() => {
+                updateChart(currentLiveSpeed);
+            }, 1000);
+
+            while (performance.now() - startTime < TEST_DURATION_MS) {
+                try {
+                    const cacheBuster = "&t=" + performance.now();
+                    const response = await fetch(downloadEndpoint + cacheBuster, { cache: 'no-store' });
+                    
+                    if (!response.body) throw new Error("Stream not supported.");
+                    const reader = response.body.getReader();
+                    
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (value) totalBytes += value.length;
+
+                        let currentTime = performance.now();
+                        let elapsedSeconds = (currentTime - startTime) / 1000;
+
+                        if (elapsedSeconds > 0) {
+                            currentLiveSpeed = ((totalBytes * 8) / elapsedSeconds / 1000000);
+                            downloadValue.innerText = currentLiveSpeed.toFixed(2);
+                        }
+
+                        if (currentTime - startTime >= TEST_DURATION_MS) {
+                            reader.cancel();
+                            clearInterval(chartUpdateInterval);
+                            return; 
+                        }
+                        if (done) break;
+                    }
+                } catch (e) {
+                    break;
+                }
+            }
+            clearInterval(chartUpdateInterval);
+            downloadValue.innerText = currentLiveSpeed.toFixed(2);
+        }
+
+        async function testUploadStability() {
+            let startTime = performance.now();
+            let totalBytes = 0;
+            currentLiveSpeed = 0;
+            
+            const chunkSize = 512 * 1024; 
+            const dummyData = new Uint8Array(chunkSize);
+            const blob = new Blob([dummyData], { type: 'application/octet-stream' });
+
+            chartUpdateInterval = setInterval(() => {
+                updateChart(currentLiveSpeed);
+            }, 1000);
+
+            while (performance.now() - startTime < TEST_DURATION_MS) {
+                try {
+                    await fetch(uploadEndpoint, {
+                        method: 'POST',
+                        body: blob,
+                        cache: 'no-store'
+                    });
+
+                    totalBytes += chunkSize;
+                    let currentTime = performance.now();
+                    let elapsedSeconds = (currentTime - startTime) / 1000;
+
+                    if (elapsedSeconds > 0) {
+                        currentLiveSpeed = ((totalBytes * 8) / elapsedSeconds / 1000000);
+                        uploadValue.innerText = currentLiveSpeed.toFixed(2);
+                    }
+                } catch (error) {
+                    uploadValue.innerText = "Err";
+                    break;
+                }
+            }
+            clearInterval(chartUpdateInterval);
+            uploadValue.innerText = currentLiveSpeed.toFixed(2);
+        }
+    </script>
+</body>
+</html>
